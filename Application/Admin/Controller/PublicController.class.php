@@ -1,0 +1,115 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: guide
+ * Date: 2015/8/3
+ * Time: 15:16
+ */
+namespace Admin\Controller;
+use Think\Controller, Admin\Model\MenuModel;
+
+class PublicController extends Controller {
+    /**
+     * 登录
+     */
+    public function login() {
+        isset($_SESSION) or session_start();
+        isset($_SESSION['admin_id']) and $this->redirect('Admin/Index/index');
+        $this->display('login');
+    }
+
+    /**
+     * 登录提交
+     */
+    public function loginPost() {
+        $user = I('post.username');
+        $pass = md5(I('post.password'));
+        $is_auto = I('post.is_auto');
+        $capt = I('post.captcha');
+        if (!$this->check_verify($capt)) {
+            $this->error('验证码错误！');
+        }
+        $model = M('Admin');
+        $user = $model->where("username='$user' OR email='$user'")->getField('admin_id,user_status');
+        if (empty($user)) {
+            $this->error('帐号不存在！');
+        }
+	    if ('禁用' == current($user)) {
+		    $this->error('帐号被禁用，请联系管理员！');
+	    }
+	    
+        $id = key($user);
+	    $map = array(
+		    'admin_id' => $id,
+		    'password' => $pass,
+		    'user_status' => '启用',
+	    );
+        $res = $model->alias('a')->field('admin_id,username,role_id,name,avatar')
+	        ->join('__ROLE__ b USING(`role_id`)', 'LEFT')->where($map)->find();
+        if (empty($res)) {
+            $this->error('帐号或密码错误！');
+        }
+        //记住一周
+        if ($is_auto) {
+            //设置cookie中sessionid过期时间
+            isset($_COOKIE['PHPSESSID']) ? setcookie('PHPSESSID', $_COOKIE['PHPSESSID'], time()+86400*7 , '/') : ini_set('session.cookie_lifetime', 86400*7);
+        } else {
+            isset($_COOKIE['PHPSESSID']) and setcookie('PHPSESSID', $_COOKIE['PHPSESSID'], 0 , '/');
+        }
+
+	    //登录时清空缓存
+	    $menuModel = new MenuModel();
+	    $menuModel->flushMenuCache($res['role_id']);
+
+        session_start();
+        $_SESSION = array(
+            'admin_id' => $id,
+            'username' => $res['username'],
+            'role_id' => $res['role_id'],
+            'role_name' => $res['name'],
+            'avatar' => $res['avatar'],
+        );
+        $data = array(
+            'last_ip' => get_client_ip(),
+            'last_time' => date('Y-m-d H:i:s'),
+        );
+        $model->where(array('admin_id' => $id))->save($data);
+        $this->success('登录成功', U('Admin/Index/index'));
+    }
+
+    /**
+     * 注销
+     */
+    public function logout() {
+        session_start();
+        $_SESSION['admin_id'] = null;
+        $_SESSION['role_id'] = null;
+        session_destroy();
+        setcookie(PHPSESSID, session_id(), 0, '/');
+        $this->redirect('login');
+    }
+
+    /**
+     * 验证码
+     */
+    public function captcha() {
+        session_start();
+        $config = array(
+            'fontSize' => 20,
+            'length' => 4,
+            'useNoise' => false,// 关闭验证码杂点
+            'fontttf' => '4.ttf',
+        );
+        $Verify = new \Think\Verify($config);
+        $Verify->entry(2);
+    }
+
+    /**
+     * 图片验证
+     */
+    public function check_verify($capt) {
+        session_start();
+        $verify = new \Think\Verify();
+        return $verify->check($capt, 2);
+    }
+}

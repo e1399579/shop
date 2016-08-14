@@ -1,0 +1,118 @@
+<layout name="../../Layout/admin" />
+<!-- Page heading -->
+<div class="page-head">
+    <h2 class="pull-left" id="table-title"><i class="fa <?php echo $menu['icon'];?>"></i> <?php echo $menu['name'];?></h2>
+    <div class="pull-right" style="cursor: pointer;line-height: 43px;">
+        <i class="fa fa-expand" onclick="ctrl(this)"></i>
+    </div>
+    <div class="clearfix"></div>
+</div>
+<!-- Page heading ends -->
+
+<!-- Matter -->
+
+<div class="matter">
+    <div class="container">
+    <!-- Table -->
+    <div class="row col-md-12">
+    <div class="widget">
+        <div class="widget-head">
+            <form class=" form-inline" method="get" action="__ACTION__" id="form-search">手机号<input type="text" placeholder="手机号" name="mobile"
+				class="form-control" value="<?php echo I('get.mobile');?>">QQ<input type="text" placeholder="QQ" name="qq"
+				class="form-control" value="<?php echo I('get.qq');?>">注册时间<input type="text" placeholder="注册时间" name="register_time"
+				class="form-control" value="<?php echo I('get.register_time');?>">手机号归属地<input type="text" placeholder="手机号归属地" name="mobile_address"
+				class="form-control" value="<?php echo I('get.mobile_address');?>">登录所在地<input type="text" placeholder="登录所在地" name="login_address"
+				class="form-control" value="<?php echo I('get.login_address');?>"><button type="submit" class="btn btn-info"  onclick="return search('#form-search')">搜索</button>
+					<a class="btn btn-info pull-right" href="{:U('add')}" data-toggle="modal" data-target="#myModal">
+						<i class="fa fa-plus"></i>添加用户
+					</a>
+				  </form>
+            <div class="clearfix"></div>
+        </div>
+
+        <form method="post" action="__CONTROLLER__/bdel">
+        <div class="widget-content">
+            <table class="table table-striped table-bordered table-hover">
+                <thead>
+                    <tr>
+				<th><input type="checkbox" class="check_all" /></th>
+				<th>用户ID</th><th>手机号</th><th>QQ</th><th>邮箱</th><th>LOGO</th><th>注册时间</th><th>注册IP</th><th>用户状态</th><th>最后登录IP</th><th>最后登录时间</th><th>手机号归属地</th><th>登录所在地</th>
+				<th>操作</th>
+			 </tr>
+                </thead>
+                <tbody id="form-list"></tbody>
+            </table>
+        </div>
+
+        <div class="widget-foot">
+            <div class="pagination">
+                <label><input id="check_all" class="check_all" type="checkbox">全选</label>
+                <input class="btn btn-danger" value="删除" onclick="return confirm('确定批量删除吗？')" type="submit" />
+            </div>
+            <ul class="pagination pull-right" id="page">
+                <?php echo $page;?>
+            </ul>
+            <div class="clearfix"></div>
+        </div>
+        </form>
+    </div>
+    </div>
+    </div>
+</div>
+<!-- Modal -->
+<div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content"></div>
+    </div>
+</div>
+
+<script type="text/javascript">
+	function getList(form){
+	    $.ajax({
+	        type:"get",
+	        url:"__CONTROLLER__/search",
+	        data:$(form).serialize()+"&p="+curr,
+	        dataType:"json",
+	        success:function(data){
+	            var list = data.data;
+	            if(list == null){
+	                $("#form-list").html("");
+	                $("#page").html("");
+	                return;
+	            }
+				var html = "";
+				for(var i in list){
+				    html += '<tr><td><input type="checkbox" name="delid[]" data="id" value="'+list[i].user_id+'"></td>';
+				    html += "<td>"+list[i].user_id+"</td>";
+					html += "<td>"+list[i].mobile+"</td>";
+					html += "<td>"+list[i].qq+"</td>";
+					html += "<td>"+list[i].email+"</td>";
+					html += "<td>"+list[i].logo+"</td>";
+					html += "<td>"+list[i].register_time+"</td>";
+					html += "<td>"+list[i].register_ip+"</td>";
+					html += "<td>"+list[i].status+"</td>";
+					html += "<td>"+list[i].last_ip+"</td>";
+					html += "<td>"+list[i].last_time+"</td>";
+					html += "<td>"+list[i].mobile_address+"</td>";
+					html += "<td>"+list[i].login_address+"</td>";
+					
+				    html += '<td><a class="btn btn-xs btn-warning a-color" href="__CONTROLLER__/save/id/'+list[i].user_id+
+				            '" data-toggle="modal" data-target="#myModal"><i class="fa fa-pencil"></i></a> ';
+				    html += '<button type="button" class="btn btn-xs btn-danger" data-toggle="popover" data-placement="left" data-title="是否删除？" data-html="true" '+
+				        'data-content="<button type=\'button\' class=\'btn btn-danger\' onclick=\'del(this)\'>确定</button> '+
+				        '<button type=\'button\' class=\'btn btn-default\' onclick=\'$(this).parent().parent().prev().click()\'>取消</button>">'+
+				        '<a class="a-color" href="__CONTROLLER__/del/id/'+list[i].user_id+'" onclick="return false;"><i class="fa fa-remove"></i></a></button></td></tr>';
+				}
+				$("#form-list").html(html);
+	            var page = data.page;
+	            page = page.replace(/<a(.*?)>(.*?)<\/a>/gi, "<li><a$1>$2</a></li>");
+	            page = page.replace(/<span(.*?)>(.*?)<\/span>/, "<li><span$1>$2</span></li>");
+	            $("#page").html(page);
+	            $('button[data-toggle="popover"]').popover();//重新载入弹出框
+	            replace();
+	        }
+	    });
+	    return false;
+	}
+	$(function(){search('#form-search')});
+</script>

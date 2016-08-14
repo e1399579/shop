@@ -1,0 +1,272 @@
+<!--后台模块模板布局-->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title><?php echo $menu['name']; ?></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="">
+	<link rel="stylesheet" href="__PUBLIC__/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="__PUBLIC__/css/font-awesome.min.css">
+    <link rel="stylesheet" href="__PUBLIC__/Admin/css/style.css">
+</head>
+<body>
+<script type="text/javascript" src="__PUBLIC__/js/jquery.min.js"></script>
+<script type="text/javascript" src="__PUBLIC__/bootstrap/js/bootstrap.min.js"></script>
+
+<!--内容部分-->
+<div class="mainbar">
+    {__CONTENT__}
+</div>
+
+<script type="text/javascript">
+
+    //全屏切换
+    function ctrl(obj) {
+        //查找父容器中id=page-wrapper的第一子元素
+        var page_wrapper = $(window.parent.document.getElementById("page-wrapper")).children(":first");
+        page_wrapper.slideToggle("normal");
+        var icon_full = "fa-expand";
+        var icon_small = "fa-compress";
+        if ($(obj).hasClass(icon_full)) {
+            $(obj).removeClass(icon_full).addClass(icon_small);
+            if (!$(window.parent.document.body).hasClass("mini-navbar"))//如果菜单栏已经折叠，则不用触发点击事件
+                page_wrapper.find(".fa-bars").trigger("click");
+        } else {
+            $(obj).removeClass(icon_small).addClass(icon_full);
+            if ($(window.parent.document.body).hasClass("mini-navbar"))
+                page_wrapper.find(".fa-bars").trigger("click");
+        }
+    }
+
+    //分页字符串，考虑某些页面没有分页字符串的情况
+    if (($("body").find("#page").length)) {
+        var page = $("#page").html();
+        page = page.replace(/<\/?div>/gi, "");
+        page = page.replace(/<a(.*?)>(.*?)<\/a>/gi, "<li><a$1>$2</a></li>");
+        page = page.replace(/<span(.*?)>(.*?)<\/span>/, "<li><span$1>$2</span></li>");
+        $("#page").html(page);
+    }
+
+    //全选
+    $(".check_all").click(function () {
+        var isChecked = $(this).is(":checked");
+        $("input[data=id]").prop("checked", isChecked);
+    });
+    //模态框隐藏时移出数据
+    $("#myModal").on("hidden.bs.modal", function () {
+        $(this).removeData("bs.modal");
+    });
+
+    //表单提交
+    function ajaxPost(url, form) {
+        $.ajax({
+            type: "post",
+            url: url,
+            data: $(form).serialize(),
+            dataType: "json",
+            success: function (data) {
+                if (data.status) {
+                    $(form).find(".error-msg").html("");
+                    var html = '<div class="alert alert-success" role="alert">' + data.info + '</div>';
+                    $(form).append(html);
+                    window.setTimeout(function () {
+                        $('#myModal').modal('toggle');
+                    }, 500);
+                    getList("#form-search");
+                } else {
+                    var html = '<div role="alert" class="alert alert-warning alert-dismissible fade in">';
+                    html += '<button aria-label="Close" data-dismiss="alert" class="close" type="button"><span aria-hidden="true">×</span></button>';
+                    html += '<strong>' + data.info + '</strong></div>'
+                    $(form).find(".error-msg").html(html);
+                }
+            }
+        });
+    }
+
+    //搜索表单相关
+    $(function () {
+        if (($("body").find("#page").length)) replace();
+        $('[data-toggle="popover"]').popover();
+    });
+    var curr = 1;
+    //链接转为点击事件
+    function replace() {
+        $("#page").html($("#page").html().replace(/<\/?div>/gi, ""));
+        $.each($("#page a"), function (i, n) {
+            var str = $(this).attr("href");
+            var p = str.match(/p[\/\?]=?(\d+)/);
+            $(this).attr("p", p[1]);
+            $(this).attr("href", "javascript:;");
+            $(this).click(function () {
+                curr = $(this).attr("p");
+                getList("#form-search");
+            });
+        });
+    }
+    function search(form) {
+        curr = 1;//点搜索按钮时将页数置为1
+        getList(form);
+        return false;
+    }
+
+    //del();
+    //删除确认框
+    function del(btn) {
+        var button = $(btn).parent().parent().prev();
+        var url = button.children().prop('href');
+        $.get(url, function (data) {
+            if (data.status) {
+                getList("#form-search");
+            } else {
+                alert(data.info);
+            }
+        }, 'json');
+        button.click();
+    }
+
+    //文件上传
+    function ajaxFilePost(url, form) {
+        var formData = new FormData($(form)[0]);//html5
+        //只追加一个progress元素
+        if(!$(form).find(".progress").length) {
+            //进度条
+            var html = '<div class="progress">' +
+                '<div class="progress-bar progress-bar-success progress-bar-striped active" role="progressbar"' +
+                ' aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="min-width: 2em;">0%</div></div>';
+            $(form).append(html);
+        }
+        var progress = $(".progress").children("div");
+        $.ajax({
+            url: url,
+            type: 'post',
+            xhr: function() {
+                //自定义xhr对象
+                myXhr = $.ajaxSettings.xhr();
+                if(myXhr.upload){
+                    myXhr.upload.onprogress = function(e) {
+                        //监测进度
+                        var percent = Math.floor(e.loaded / e.total * 100);
+                        progress.width(percent+"%");
+                        progress.text(percent+"%");
+                    }
+                }
+                return myXhr;
+            },
+            success: function (data) {
+                if (data.status) {
+                    $(form).find(".error-msg").html("");
+                    var html = '<div class="alert alert-success" role="alert">' + data.info + '</div>';
+                    $(form).append(html);
+                    window.setTimeout(function () {
+                        $('#myModal').modal('toggle');
+                    }, 500);
+                    getList("#form-search");
+                } else {
+                    var html = '<div role="alert" class="alert alert-warning alert-dismissible fade in">';
+                    html += '<button aria-label="Close" data-dismiss="alert" class="close" type="button"><span aria-hidden="true">×</span></button>';
+                    html += '<strong>' + data.info + '</strong></div>'
+                    $(form).find(".error-msg").html(html);
+                    progress.width("0%");
+                    progress.text("0%");
+                }
+            },
+            data: formData,
+            dataType: 'json',
+            cache: false,
+            contentType: false,
+            processData: false
+        });
+    }
+    /**
+     * 检查表单是否修改
+     * @param form
+     * @returns {boolean}
+     */
+    function checkUpdate(form) {
+        var str = $(form).serialize();
+        var arr = [];
+        $.each(form, function(i,n){
+            var name = encodeURI(n.name);
+            var value = encodeURI($(n).attr("data-value"));
+            switch (n.type) {
+                case "checkbox":
+                case "radio":
+                    if (n.checked) {
+                        arr.push(name + "=" + value);
+                    }
+                    break;
+                case "submit":
+                case "reset":
+                case "button":
+                    break;
+                case "file":
+                    var filename = n.value;
+                    if (filename) {
+                        arr.push(name + "=" + filename);
+                    }
+                    break;
+                default:
+                    arr.push(name + "=" + value);
+                    break;
+            }
+        });
+        var old = arr.join("&");
+        return str != old;
+    }
+
+    //修改提交
+    function save(form) {
+        if (!checkUpdate(form)) {
+            $(form).find(".error-msg").html("");
+            var html = '<div class="alert alert-success" role="alert">' + "未作任何修改" + '</div>';
+            $(form).append(html);
+            window.setTimeout(function () {
+                $('#myModal').modal('toggle');
+            }, 500);
+            return;
+        }
+
+	    var url = $(form).attr("action");//form.action 会被<input name="action">元素覆盖
+        var enctype = $(form).attr("enctype");
+        if (enctype == "multipart/form-data") {
+            ajaxFilePost(url, form);
+        } else {
+            ajaxPost(url, form);
+        }
+    }
+    //添加提交
+    function add(form) {
+	    var url = $(form).attr("action");//form.action 会被<input name="action">元素覆盖
+	    var enctype = $(form).attr("enctype");
+	    if (enctype == "multipart/form-data") {
+		    ajaxFilePost(url, form);
+	    } else {
+		    ajaxPost(url, form);
+	    }
+    }
+
+    //收起效果
+    $('.wminimize').click(function(e){
+	    e.preventDefault();
+	    var $wcontent = $(this).parent().parent().next('.widget-content');
+	    if($wcontent.is(':visible'))
+	    {
+		    $(this).children('i').removeClass('icon-chevron-up').addClass('icon-chevron-down');
+	    }
+	    else
+	    {
+		    $(this).children('i').removeClass('icon-chevron-down').addClass('icon-chevron-up');
+	    }
+	    $wcontent.slideToggle(300);
+    });
+
+	//关闭效果
+    $('.wclose').click(function(e){
+	    e.preventDefault();
+	    var $wbox = $(this).parent().parent().parent();
+	    $wbox.hide(100);
+    });
+</script>
+</body>
+</html>
